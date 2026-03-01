@@ -1,36 +1,30 @@
-package com.example.spring_boot_url_shortlink;
+package com.example.spring_boot_url_shortlink.service;
 
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
-import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
 @Service
-public class Urlservice {
+public class UrlService {
 
-    private Map<String, String> shortToLong = new ConcurrentHashMap<>();
-    private Map<String, String> longToShort = new ConcurrentHashMap<>();
-    private Map<String, Integer> domainCount = new ConcurrentHashMap<>();
+    private final Map<String, String> shortToLong = new ConcurrentHashMap<>();
+    private final Map<String, String> longToShort = new ConcurrentHashMap<>();
+    private final Map<String, Integer> domainCount = new ConcurrentHashMap<>();
 
-    private AtomicLong counter = new AtomicLong(1);
+    private final AtomicLong counter = new AtomicLong(1);
 
     public String shortenUrl(String longUrl) {
-
-        if (longToShort.containsKey(longUrl)) {
-            return longToShort.get(longUrl);
-        }
-
-        String shortCode = encode(counter.getAndIncrement());
-
-        shortToLong.put(shortCode, longUrl);
-        longToShort.put(longUrl, shortCode);
-
-        updateDomainMetrics(longUrl);
-
-        return shortCode;
+        return longToShort.computeIfAbsent(longUrl, url -> {
+            String shortCode = encode(counter.getAndIncrement());
+            shortToLong.put(shortCode, url);
+            updateDomainMetrics(url);
+            return shortCode;
+        });
     }
 
     public String getOriginalUrl(String shortCode) {
@@ -41,16 +35,16 @@ public class Urlservice {
         try {
             URI uri = new URI(url);
             String domain = uri.getHost();
-            domainCount.put(domain, domainCount.getOrDefault(domain, 0) + 1);
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid URL");
+            if (domain != null) {
+                domainCount.merge(domain, 1, Integer::sum);
+            }
+        } catch (Exception ignored) {
         }
     }
 
     public Map<String, Integer> topDomains() {
-        return domainCount.entrySet()
-                .stream()
-                .sorted((a, b) -> b.getValue() - a.getValue())
+        return domainCount.entrySet().stream()
+                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
                 .limit(3)
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
@@ -63,12 +57,10 @@ public class Urlservice {
     private String encode(long num) {
         String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         StringBuilder sb = new StringBuilder();
-
         while (num > 0) {
-            sb.append(chars.charAt((int)(num % 62)));
+            sb.append(chars.charAt((int) (num % 62)));
             num /= 62;
         }
-
         return sb.reverse().toString();
     }
 }

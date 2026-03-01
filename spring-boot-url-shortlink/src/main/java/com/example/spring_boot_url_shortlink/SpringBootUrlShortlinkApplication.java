@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class SpringBootUrlShortlinkApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SpringBootUrlShortlinkApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SpringBootUrlShortlinkApplication.class, args);
+    }
 
 }
